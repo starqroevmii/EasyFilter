@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIMB Collection Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --red:          #C8102E;
+      --red-dark:     #A30D25;
+      --red-light:    #F5E6E9;
+      --red-mid:      #FCEEF0;
+      --pink:         #FF69B4;
+      --pink-glow:    #FFB6C1;
+      --white:        #FFFFFF;
+      --bg:           #F7F7F8;
+      --surface:      #FFFFFF;
+      --surface2:     #F2F3F5;
+      --border:       #E4E6EA;
+      --border2:      #D0D3DA;
+      --text:         #1A1A2E;
+      --text-sub:     #4A4D5A;
+      --text-muted:   #8A8D99;
+      --green:        #00875A;
+      --green-bg:     #E3F5EE;
+      --blue:         #0057B8;
+      --blue-bg:      #E6EEF9;
+      --gold:         #C07B00;
+      --gold-bg:      #FBF3E0;
+      --purple:       #6B3FA0;
+      --purple-bg:    #F0EBF8;
+      --teal:         #007B8A;
+      --teal-bg:      #E0F4F6;
+      --sans:         'DM Sans', system-ui, sans-serif;
+      --mono:         'DM Mono', monospace;
+      --radius-sm:    4px;
+      --radius:       8px;
+      --radius-lg:    12px;
+      --radius-xl:    16px;
+      --shadow-sm:    0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow:       0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .app-header { 
+      background: var(--red); 
+      color: var(--white); 
+      padding: 0.85rem 1.5rem; 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      box-shadow: 0 2px 8px rgba(200,16,46,0.25); 
+      border-bottom: 3px solid var(--red-dark); 
+      position: sticky; 
+      top: 0; 
+      z-index: 1000; 
+    }
+    .header-title { font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+    .header-logo-img { max-height: 30px; width: auto; object-fit: contain; display: block; }
+    
+    .header-logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .header-controls { display: flex; align-items: center; gap: 0.5rem; position: relative; }
+
+    /* history */
+    .history-dropdown { position: absolute; top: 110%; right: 0; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); width: 320px; max-height: 360px; overflow-y: auto; display: none; flex-direction: column; z-index: 1000; color: var(--text); }
+    .history-dropdown.is-open { display: flex; }
+    .history-header { padding: 0.6rem 0.8rem; font-weight: 700; font-size: 0.8rem; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .history-item { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.15s; font-size: 0.75rem; }
+    .history-item:hover { background: var(--red-light); }
+    .history-info { display: flex; flex-direction: column; gap: 2px; }
+    .history-name { font-weight: 600; color: var(--text); }
+    .history-date { font-size: 0.68rem; color: var(--text-muted); }
+    .history-del { border: none; background: transparent; color: var(--text-muted); font-size: 0.9rem; cursor: pointer; padding: 2px 5px; border-radius: var(--radius-sm); }
+    .history-del:hover { color: var(--red); background: var(--surface2); }
+
+    .app-layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 54px); }
+    .sidebar { background: var(--white); border-right: 1px solid var(--border); padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; max-height: calc(100vh - 54px); position: sticky; top: 54px; }
+    .main-content { padding: 1.5rem; overflow-y: auto; }
+
+    .upload-zone { border: 2px dashed var(--border2); border-radius: var(--radius-lg); padding: 1.25rem 1rem; text-align: center; background: var(--surface2); cursor: pointer; transition: all 0.2s; }
+    .upload-zone:hover, .upload-zone.dragover, .upload-zone.has-files { border-color: var(--red); background: var(--red-light); }
+    .upload-btn { background: var(--red); color: var(--white); border: none; padding: 0.45rem 0.9rem; border-radius: var(--radius); font-weight: 600; font-size: 0.8rem; cursor: pointer; margin-top: 0.5rem; }
+
+    /* file list stacked cards */
+    .file-stack-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+    }
+
+    .file-stack-item {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+    }
+
+    .file-stack-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .file-stack-name {
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-stack-date {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .file-remove-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 0 4px;
+      border-radius: var(--radius-sm);
+    }
+
+    .file-remove-btn:hover {
+      color: var(--red);
+      background: var(--red-light);
+    }
+
+    /* filter panel options */
+    .filter-panel { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.75rem; }
+    .filter-header { padding: 0.6rem 0.75rem; font-weight: 600; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--white); border-bottom: 1px solid var(--border); }
+    .filter-body { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .filter-panel.is-collapsed .filter-body { display: none; }
+    .filter-search { width: 100%; padding: 0.35rem 0.5rem; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 0.78rem; outline: none; }
+    .filter-actions { display: flex; gap: 0.3rem; margin: 0.2rem 0; }
+    .filter-action-btn { flex: 1; padding: 0.25rem; border: 1px solid var(--border2); background: var(--white); border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600; cursor: pointer; }
+    .filter-list { max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
+    .filter-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+    .filter-item.hidden { display: none; }
+    .filter-item input[type="checkbox"] { accent-color: var(--red); cursor: pointer; }
+
+    /* stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 0.85rem 0.75rem; position: relative; box-shadow: var(--shadow-sm); }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+    .stat-card::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 0; width: 3px; border-radius: 0 2px 2px 0; }
+    
+    .stat-card.accent::before,         .stat-card.accent::after         { background: var(--red); }
+    .stat-card.accent-green::before,   .stat-card.accent-green::after   { background: var(--green); }
+    .stat-card.accent-gold::before,    .stat-card.accent-gold::after    { background: var(--gold); }
+    .stat-card.accent-purple::before,  .stat-card.accent-purple::after  { background: var(--purple); }
+    .stat-card.accent-teal::before,    .stat-card.accent-teal::after    { background: var(--teal); }
+
+    .stat-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .stat-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; }
+    .stat-card.accent .stat-value { color: var(--red); }
+    .stat-card.accent-green .stat-value { color: var(--green); }
+    .stat-card.accent-gold .stat-value { color: var(--gold); }
+    .stat-card.accent-purple .stat-value { color: var(--purple); }
+    .stat-card.accent-teal .stat-value { color: var(--teal); }
+
+    /* data table */
+    .table-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.82rem; }
+    th { background: var(--surface2); padding: 0.75rem 1rem; font-weight: 600; color: var(--text-sub); border-bottom: 1px solid var(--border); }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-family: var(--mono); }
+    tr:last-child td { border-bottom: none; }
+
+    /* report */
+    .pen-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow-x: auto; box-shadow: var(--shadow-sm); }
+    .pen-table { border: 1px solid #000; border-collapse: collapse; font-size: 0.78rem; text-align: center; width: 100%; }
+    .pen-table th, .pen-table td { border: 1px solid #000; padding: 0.4rem 0.6rem; }
+    
+    .pen-table th.pen-title-row { 
+      background-color: var(--red) !important; 
+      color: var(--white) !important; 
+      font-weight: 700 !important; 
+      font-size: 0.95rem !important; 
+      text-transform: uppercase !important; 
+      padding: 0.6rem !important;
+    }
+    
+    .pen-header-row th { background-color: #D9E1F2 !important; color: #000 !important; font-weight: bold !important; }
+    .pen-table td.text-left { text-align: left; }
+    .pen-table .total-row td { font-weight: bold; background-color: #F2F2F2; }
+
+    /* input account */
+    .endo-input {
+      width: 70px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      text-align: center;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 2px 4px;
+      background: var(--surface2);
+      font-weight: 600;
+    }
+    .endo-input:focus {
+      outline: none;
+      border-color: var(--red);
+      background: var(--white);
+    }
+
+    /* animated pink star loader overlay */
+    .loader-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; font-weight: 600; gap: 0.5rem; }
+    .loader-overlay.is-visible { display: flex; }
+
+    .star-loader {
+      width: 48px;
+      height: 48px;
+      fill: var(--pink);
+      filter: drop-shadow(0 0 8px var(--pink-glow));
+      animation: spinPulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes spinPulse {
+      0% { transform: scale(0.8) rotate(0deg); opacity: 0.7; }
+      50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+      100% { transform: scale(0.8) rotate(360deg); opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <svg class="star-loader" viewBox="0 0 24 24">
+      <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6z"/>
+    </svg>
+    <div class="loader-text">Processing…</div>
+  </div>
+
+  <header class="app-header">
+    <div class="header-title">
+      <img src="cimb-logo.png" alt="CIMB Logo" class="header-logo-img">
+      <span>CIMB Collection Dashboard</span>
+    </div>
+    
+    <div class="header-controls">
+      <button id="historyToggleBtn" class="upload-btn" style="background:#333; margin:0;">History ▾</button>
+      <button id="clearBtn" class="upload-btn" style="background:#555; display:none; margin:0;">Reset</button>
+
+      <div class="history-dropdown" id="historyDropdown">
+        <div class="history-header">
+          <span>Upload History</span>
+          <span style="font-size:0.7rem; color:var(--text-muted);" id="historyCount">0 saved</span>
+        </div>
+        <div id="historyListContainer">
+          <div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:0.75rem;">No upload history yet</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div>
+        <p style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:0.35rem;">Direct Analysis</p>
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-inner">
+            <p style="font-size:0.8rem; font-weight:600; color:var(--text-sub);" id="uploadBoxTitle">Drop reports here</p>
+            <p style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;" id="uploadBoxSub">Supports single or multiple .xlsx / .csv</p>
+            <button class="upload-btn">Browse Files</button>
+          </div>
+          <input type="file" id="fileInput" accept=".xlsx, .csv" multiple style="display:none;">
+        </div>
+      </div>
+
+      <div id="fileListPanel" style="display:none; font-size:0.75rem;">
+        <strong id="fileListTitle">Loaded Files</strong>
+        <div id="fileListItems" class="file-stack-list"></div>
+      </div>
+
+      <div id="filtersWrap" style="display:none;">
+        <p style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:0.5rem;">Filters</p>
+        
+        <div class="filter-panel">
+          <div class="filter-header" data-panel="client">
+            <span>🏢 Client</span>
+            <span class="filter-count" id="filterCount">0/0</span>
+          </div>
+          <div class="filter-body">
+            <input type="text" id="clientSearch" class="filter-search" placeholder="Search clients...">
+            <div class="filter-actions">
+              <button class="filter-action-btn" id="selectAllBtn">Select All</button>
+              <button class="filter-action-btn" id="clearAllBtn">Clear All</button>
+            </div>
+            <div class="filter-list" id="filterList"></div>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-header" data-panel="status">
+            <span>📌 Status</span>
+            <span class="filter-count" id="statusFilterCount">0/0</span>
+          </div>
+          <div class="filter-body">
+            <input type="text" id="statusSearch" class="filter-search" placeholder="Search statuses...">
+            <div class="filter-actions">
+              <button class="filter-action-btn" id="statusSelectAllBtn">Select All</button>
+              <button class="filter-action-btn" id="statusClearAllBtn">Clear All</button>
+            </div>
+            <div class="filter-list" id="statusFilterList"></div>
+          </div>
+        </div>
+
+        <div class="filter-panel">
+          <div class="filter-header" data-panel="callStatus">
+            <span>📞 Call Status</span>
+            <span class="filter-count" id="callStatusFilterCount">0/0</span>
+          </div>
+          <div class="filter-body">
+            <input type="text" id="callStatusSearch" class="filter-search" placeholder="Search call status...">
+            <div class="filter-actions">
+              <button class="filter-action-btn" id="callStatusSelectAllBtn">Select All</button>
+              <button class="filter-action-btn" id="callStatusClearAllBtn">Clear All</button>
+            </div>
+            <div class="filter-list" id="callStatusFilterList"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div id="errorBox" style="display:none; color:var(--red); padding:1rem; background:var(--red-light); border-radius:var(--radius); margin-bottom:1rem;">
+        <span id="errorMsg"></span>
+      </div>
+
+      <div id="emptyState" style="text-align:center; padding:4rem 1rem; color:var(--text-muted);">
+        <h2>Upload a dataset to begin</h2>
+        <p style="font-size:0.85rem; margin-top:0.5rem;">Select your .xlsx or .csv reports to populate real-time analytics.</p>
+      </div>
+
+      <div id="resultsSection" style="display:none;">
+        <div class="stats-grid">
+          <div class="stat-card accent">
+            <div class="stat-label">Accounts</div>
+            <div class="stat-value" id="uniqueAccounts">0</div>
+          </div>
+          <div class="stat-card accent-gold">
+            <div class="stat-label">Balance</div>
+            <div class="stat-value" id="totalBalance">₱0.00</div>
+          </div>          
+          <div class="stat-card accent-green">
+            <div class="stat-label">Dials</div>
+            <div class="stat-value" id="totalDials">0</div>
+          </div>
+          <div class="stat-card accent-purple">
+            <div class="stat-label">PTP Count</div>
+            <div class="stat-value" id="ptpCount">0</div>
+          </div>
+          <div class="stat-card accent-purple">
+            <div class="stat-label">PTP Total</div>
+            <div class="stat-value" id="ptpTotal">₱0.00</div>
+          </div>
+          <div class="stat-card accent-teal">
+            <div class="stat-label">Claim Paid Count</div>
+            <div class="stat-value" id="claimCount">0</div>
+          </div>
+          <div class="stat-card accent-teal">
+            <div class="stat-label">Claim Paid Total</div>
+            <div class="stat-value" id="claimTotal">₱0.00</div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+          <h3 style="font-size:1rem;">Daily Breakdown</h3>
+          <span id="tableBadge" style="font-size:0.75rem; background:var(--surface2); padding:0.2rem 0.5rem; border-radius:var(--radius-sm);">0 days</span>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Accounts</th>
+                <th>Dials</th>
+                <th>Balance</th>
+                <th>PTP Count</th>
+                <th>PTP Total</th>
+                <th>Claim Count</th>
+                <th>Claim Total</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:2rem;">
+          <h3 style="font-size:1rem; margin-bottom:0.75rem;">Penetration Report Breakdown</h3>
+          <div class="pen-card">
+            <table class="pen-table">
+              <thead>
+                <tr>
+                  <th colspan="14" class="pen-title-row" id="penReportTitle">PENETRATION REPORT FOR CIMB</th>
+                </tr>
+                <tr class="pen-header-row">
+                  <th>Campaign</th>
+                  <th>Total Endo</th>
+                  <th>Worked on ticket</th>
+                  <th>Connected (unique)</th>
+                  <th>RPC</th>
+                  <th>Dials</th>
+                  <th>Worked Accounts(%)</th>
+                  <th>Penetration Rate(%)</th>
+                  <th>Passes Count</th>
+                  <th>Connected Rate(%)</th>
+                  <th>PTP Count</th>
+                  <th>PTP Amount</th>
+                  <th>KEPT Count</th>
+                  <th>KEPT Amount</th>
+                </tr>
+              </thead>
+              <tbody id="penTableBody"></tbody>
+              <tfoot>
+                <tr id="penTableTotal" class="total-row"></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
