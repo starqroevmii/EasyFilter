@@ -1,3 +1,30 @@
+let excludedAccounts = new Set();
+
+const excludeAccountsInput = document.getElementById('excludeAccountsInput');
+const applyExcludeBtn = document.getElementById('applyExcludeBtn');
+const clearExcludeBtn = document.getElementById('clearExcludeBtn');
+const excludeFilterCount = document.getElementById('excludeFilterCount');
+
+if (applyExcludeBtn) {
+  applyExcludeBtn.addEventListener('click', () => {
+    const rawText = excludeAccountsInput.value;
+    // Split by commas, spaces, or newlines
+    const tokens = rawText.split(/[\s,]+/).map(t => t.trim()).filter(Boolean);
+    excludedAccounts = new Set(tokens);
+    excludeFilterCount.textContent = excludedAccounts.size.toString();
+    applyFilter();
+  });
+}
+
+if (clearExcludeBtn) {
+  clearExcludeBtn.addEventListener('click', () => {
+    excludeAccountsInput.value = '';
+    excludedAccounts.clear();
+    excludeFilterCount.textContent = '0';
+    applyFilter();
+  });
+}
+
 let activeFiles = [];
 let rawDataRows = [];
 let rawUnfilteredJson = [];
@@ -21,6 +48,7 @@ const resultsSection = document.getElementById('resultsSection');
 const errorBox = document.getElementById('errorBox');
 const errorMsg = document.getElementById('errorMsg');
 const clearBtn = document.getElementById('clearBtn');
+const refreshDataBtn = document.getElementById('refreshDataBtn'); // New refresh button DOM
 const fileListPanel = document.getElementById('fileListPanel');
 const fileListTitle = document.getElementById('fileListTitle');
 const fileListItems = document.getElementById('fileListItems');
@@ -202,6 +230,15 @@ fileInput.addEventListener('change', (e) => {
 
 clearBtn.addEventListener('click', resetApp);
 
+// Refresh button event listener to recalculate active files
+if (refreshDataBtn) {
+  refreshDataBtn.addEventListener('click', () => {
+    if (activeFiles.length > 0) {
+      rebuildActiveDataset();
+    }
+  });
+}
+
 document.querySelectorAll('.filter-header').forEach(header => {
   header.addEventListener('click', () => {
     header.closest('.filter-panel').classList.toggle('is-collapsed');
@@ -246,6 +283,9 @@ async function handleFiles(files) {
           rows: jsonRows,
           minDateKey: extractEarliestDateKey(jsonRows)
         });
+
+        // Save uploaded file into IndexedDB upload history
+        await saveSessionToHistory(file.name, jsonRows);
       }
     }
 
@@ -277,9 +317,9 @@ function rebuildActiveDataset() {
 
   // Merge rows from all active files
   rawUnfilteredJson = [];
-activeFiles.forEach(f => {
-  rawUnfilteredJson = rawUnfilteredJson.concat(f.rows);
-});
+  activeFiles.forEach(f => {
+    rawUnfilteredJson = rawUnfilteredJson.concat(f.rows);
+  });
 
   // Render file list UI stack
   fileListTitle.textContent = `${activeFiles.length} file(s) loaded`;
@@ -743,6 +783,20 @@ function showError(msg) {
 function hideError() {
   errorBox.style.display = 'none';
   errorMsg.textContent = '';
+}
+
+if (refreshDataBtn) {
+  refreshDataBtn.addEventListener('click', () => {
+    if (activeFiles.length > 0) {
+      showLoader(true);
+      
+      // Short delay to let the star loader render before recalculating
+      setTimeout(() => {
+        rebuildActiveDataset();
+        showLoader(false);
+      }, 400);
+    }
+  });
 }
 
 window.addEventListener('DOMContentLoaded', refreshHistoryMenu);
