@@ -629,17 +629,17 @@ function renderPenetrationReport(filteredRows) {
 
     const worked = new Set(rows.map(r => r.acct)).size;
     const connected = new Set(rows.filter(r => /connected|contacted|rpc|ptp/i.test(r.callStatus)).map(r => r.acct)).size;
-    const rpc = new Set(rows.filter(r => /rpc|right party/i.test(r.callStatus)).map(r => r.acct)).size;
+    const rpc = new Set(rows.filter(r => /positive contact/i.test(r.Status)).map(r => r.acct)).size;
     const dials = rows.filter(r => !r.isSMS).length;
 
     const workedPct = endo > 0 ? ((worked / endo) * 100).toFixed(0) + '%' : '0%';
-    const penRate = endo > 0 ? ((dials / endo) * 100).toFixed(0) + '%' : '0%';
+    const penRate = worked > 0 ? ((dials / worked) * 100).toFixed(0) + '%' : '0%';
     const passes = endo > 0 ? Math.round(dials / endo) : 0;
-    const connRate = dials > 0 ? ((connected / dials) * 100).toFixed(0) + '%' : '0%';
+    const connRate = worked > 0 ? ((connected / worked) * 100).toFixed(0) + '%' : '0%';
 
-    const ptpCount = rows.filter(r => r.hasPTP).length;
+    const ptpCount = new Set(rows.filter(r => r.hasPTP).map(r => r.acct)).size;
     const ptpAmt = rows.reduce((s, r) => s + r.ptpAmt, 0);
-    const keptCount = rows.filter(r => r.hasClaim).length;
+    const keptCount = new Set(rows.filter(r => r.hasClaim).map(r => r.acct)).size;
     const keptAmt = rows.reduce((s, r) => s + r.claimAmt, 0);
 
     totalEndoSum += Number(endo);
@@ -654,7 +654,7 @@ function renderPenetrationReport(filteredRows) {
 
     tbody.innerHTML += `
       <tr>
-        <td class="text-left" style="font-weight:600;">${cfg.label}</td>
+        <td class="text-left">${cfg.label}</td>
         <td>
           <input type="number" class="endo-input" data-key="${cfg.key}" value="${endo}" onchange="updateEndoValue('${cfg.key}', this.value)">
         </td>
