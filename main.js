@@ -624,17 +624,17 @@ function renderPenetrationReport(filteredRows) {
     });
 
     const calculatedEndo = new Set(rows.map(r => r.acct)).size;
-    // Check if user has entered a custom Total Endo value previously
+    // previous total endo
     const endo = customEndoValues[cfg.key] !== undefined ? customEndoValues[cfg.key] : calculatedEndo;
 
     const worked = new Set(rows.map(r => r.acct)).size;
     const connected = new Set(rows.filter(r => /connected|contacted|rpc|ptp/i.test(r.callStatus)).map(r => r.acct)).size;
-    const rpc = new Set(rows.filter(r => /positive contact/i.test(r.Status)).map(r => r.acct)).size;
+    const rpc = new Set(rows.filter(r => /positive\s*contact|rpc|right\s*party/i.test(r.status)).map(r => r.acct)).size;
     const dials = rows.filter(r => !r.isSMS).length;
 
     const workedPct = endo > 0 ? ((worked / endo) * 100).toFixed(0) + '%' : '0%';
     const penRate = worked > 0 ? ((dials / worked) * 100).toFixed(0) + '%' : '0%';
-    const passes = endo > 0 ? Math.round(dials / endo) : 0;
+    const passes = worked > 0 ? Math.round(dials / worked) : 0;
     const connRate = worked > 0 ? ((connected / worked) * 100).toFixed(0) + '%' : '0%';
 
     const ptpCount = new Set(rows.filter(r => r.hasPTP).map(r => r.acct)).size;
@@ -675,9 +675,9 @@ function renderPenetrationReport(filteredRows) {
   });
 
   const grandWorkedPct = totalEndoSum > 0 ? ((totalWorked / totalEndoSum) * 100).toFixed(0) + '%' : '0%';
-  const grandPenRate = totalEndoSum > 0 ? ((totalDials / totalEndoSum) * 100).toFixed(0) + '%' : '0%';
-  const grandPasses = totalEndoSum > 0 ? Math.round(totalDials / totalEndoSum) : 0;
-  const grandConnRate = totalDials > 0 ? ((totalConnected / totalDials) * 100).toFixed(0) + '%' : '0%';
+  const grandPenRate = totalWorked > 0 ? ((totalDials / totalWorked) * 100).toFixed(0) + '%' : '0%';
+  const grandPasses = totalWorked > 0 ? Math.round(totalDials / totalWorked) : 0;
+  const grandConnRate = totalWorked > 0 ? ((totalConnected / totalWorked) * 100).toFixed(0) + '%' : '0%';
 
   tfoot.innerHTML = `
     <td class="text-left">TOTAL</td>
